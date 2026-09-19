@@ -1,4 +1,4 @@
-## Installation Instructions
+## Installation Instructions  
 
 If you are new to Python, follow these steps in a terminal from the project folder.
 
