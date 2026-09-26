@@ -24,7 +24,28 @@ jupyter notebook
 
 5. Open one of the notebooks in the `notebooks/` folder and run the cells to explore the data.
 
+6. Run the Streamlit app:
+
+```bash
+python3 -m streamlit run src/app.py
+```
+
+7. Enter a stock ticker, choose an analysis type, and click Run.
+
 If you are using VS Code or Codespaces, you can also open the notebook files directly and run them from there.
+
+## Streamlit App
+
+This project includes a beginner-friendly Streamlit interface in `src/app.py`.
+
+- `src/app.py` contains the user interface and button logic
+- `src/analysis.py` contains the reusable finance helper functions extracted from the notebooks
+
+The app supports:
+
+- filings analysis
+- news analysis
+- stock price ratings analysis
 
 ## Code Walkthrough
 
