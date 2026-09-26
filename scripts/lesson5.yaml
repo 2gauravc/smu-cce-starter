@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  VPC networking lab for us-east-1. It creates a public/private subnet pair in
+  two Availability Zones, an Internet Gateway, a NAT Gateway, a security group,
+  and a web server that serves the sample application on port 80.
+
+# -----------------------------------------------------------------------------
+# VPC and foundational network resources
+# -----------------------------------------------------------------------------
+Resources:
+  LabVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: lab-vpc
+
+  LabInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: lab-igw
+
+  LabVpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref LabVpc
+      InternetGatewayId: !Ref LabInternetGateway
+
+# -----------------------------------------------------------------------------
+# Public and private subnets across two Availability Zones
+# -----------------------------------------------------------------------------
+  LabPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref LabVpc
+      AvailabilityZone: us-east-1a
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: lab-subnet-public1-us-east-1a
+
+  LabPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref LabVpc
+      AvailabilityZone: us-east-1a
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: lab-subnet-private1-us-east-1a
+
+  LabPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref LabVpc
+      AvailabilityZone: us-east-1b
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: lab-subnet-public2
+
+  LabPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref LabVpc
+      AvailabilityZone: us-east-1b
+      CidrBlock: 10.0.3.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: lab-subnet-private2
+
+# -----------------------------------------------------------------------------
+# Route tables and Internet/NAT routing for public and private subnets
+# -----------------------------------------------------------------------------
+  LabPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref LabVpc
+      Tags:
+        - Key: Name
+          Value: lab-rtb-public
+
+  LabPublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: LabVpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref LabPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref LabInternetGateway
+
+  LabPublicSubnet1RouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref LabPublicSubnet1
+      RouteTableId: !Ref LabPublicRouteTable
+
+  LabPublicSubnet2RouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref LabPublicSubnet2
+      RouteTableId: !Ref LabPublicRouteTable
+
+  LabPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref LabVpc
+      Tags:
+        - Key: Name
+          Value: lab-rtb-private1-us-east-1a
+
+  LabNatEip:
+    Type: AWS::EC2::EIP
+    DependsOn: LabVpcGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: lab-eip-nat-public1-us-east-1a
+
+  LabNatGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: LabVpcGatewayAttachment
+    Properties:
+      AllocationId: !GetAtt LabNatEip.AllocationId
+      SubnetId: !Ref LabPublicSubnet1
+      Tags:
+        - Key: Name
+          Value: lab-nat-public1-us-east-1a
+
+  LabPrivateDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: LabNatGateway
+    Properties:
+      RouteTableId: !Ref LabPrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref LabNatGateway
+
+  LabPrivateSubnet1RouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref LabPrivateSubnet1
+      RouteTableId: !Ref LabPrivateRouteTable
+
+  LabPrivateSubnet2RouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref LabPrivateSubnet2
+      RouteTableId: !Ref LabPrivateRouteTable
+
+# -----------------------------------------------------------------------------
+# Security group rules for the web server
+# -----------------------------------------------------------------------------
+  LabWebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: Web Security Group
+      GroupDescription: Enable HTTP access
+      VpcId: !Ref LabVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Permit web requests
+      Tags:
+        - Key: Name
+          Value: Web Security Group
+
+# -----------------------------------------------------------------------------
+# EC2 instance running the sample web application
+# -----------------------------------------------------------------------------
+  LabWebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0fef201115eefe936
+      InstanceType: t2.micro
+      KeyName: vockey
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref LabWebSecurityGroup
+          SubnetId: !Ref LabPublicSubnet2
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          # Install Apache Web Server and PHP
+          dnf install -y httpd wget php mariadb105-server
+          # Download Lab files
+          wget https://aws-tc-largeobjects.s3.us-west-2.amazonaws.com/CUR-TF-100-ACCLFO-2/2-lab2-vpc/s3/lab-app.zip
+          unzip lab-app.zip -d /var/www/html/
+          # Turn on web server
+          chkconfig httpd on
+          service httpd start
+      Tags:
+        - Key: Name
+          Value: Web Server 1
