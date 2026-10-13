@@ -10,27 +10,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-3. Install the required packages:
-
-```bash
-pip install -r requirements.txt
-```
-
-4. Start Jupyter Notebook:
-
-```bash
-jupyter notebook
-```
-
-5. Open one of the notebooks in the `notebooks/` folder and run the cells to explore the data.
-
-6. Run the Streamlit app:
+3. Run the Streamlit app:
 
 ```bash
 python3 -m streamlit run src/app.py
 ```
 
-7. Enter a stock ticker, choose an analysis type, and click Run.
+4. Enter a stock ticker, choose an analysis type, and click Run.
 
 If you are using VS Code or Codespaces, you can also open the notebook files directly and run them from there.
 
@@ -46,6 +32,37 @@ The app supports:
 - filings analysis
 - news analysis
 - stock price ratings analysis
+- saving an analysis as a Markdown file and viewing saved analyses
+
+### Saving and viewing previous analyses
+
+After running an analysis, select **Save Analysis** to write it as a Markdown
+file. Saved analyses include the ticker, analysis type, selected parameters,
+creation date, and results. Use **Previous Analyses** on the homepage to browse
+saved files (newest first). Select an analysis and click **Show** to open it in
+a pop-up; selecting it from the dropdown alone does not display its contents.
+
+The app creates an `analyses-data/` folder at the project root when needed.
+Its location is resolved from the app code, so the same commands and storage
+behavior work in GitHub Codespaces and on EC2:
+
+```bash
+python3 -m streamlit run src/app.py
+```
+
+To verify the feature in either environment:
+
+1. Run the command above and create an analysis, for example for `AAPL`.
+2. Select **Save Analysis** and confirm the success message.
+3. Confirm a `.md` file appears in `analyses-data/` at the project root. This
+   folder is intentionally excluded from Git.
+4. Refresh or rerun the app, select the saved analysis in **Previous
+   Analyses**, and click **Show** to view it in a pop-up.
+
+Each environment stores files on its existing project filesystem; files saved
+in Codespaces are not automatically copied to EC2, and vice versa. EC2 uses
+the instance's existing disk—no additional volume or CloudFormation changes
+are required.
 
 ## Code Walkthrough
 
